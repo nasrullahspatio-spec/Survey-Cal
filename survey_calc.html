@@ -1,0 +1,867 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Survey Calculator</title>
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Survey Calc">
+<meta name="theme-color" content="#0f5a2a">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%230f5a2a'/%3E%3Ctext x='50' y='68' font-size='58' font-family='Arial,sans-serif' font-weight='900' fill='white' text-anchor='middle'%3ES%3C/text%3E%3C/svg%3E">
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%230f5a2a'/%3E%3Ctext x='50' y='68' font-size='58' font-family='Arial,sans-serif' font-weight='900' fill='white' text-anchor='middle'%3ES%3C/text%3E%3C/svg%3E">
+<style>
+  :root{
+    --ink:#0f1a12;
+    --paper:#f8faf9;
+    --card:#ffffff;
+    --line:#d8e0da;
+    --panel:#eef3ef;
+    --accent:#1a7a3e;
+    --accent-light:#2d9e56;
+    --accent-dark:#0f5a2a;
+    --accent-glow:rgba(26,122,62,0.12);
+    --warn:#c0392b;
+    --warn-bg:#fdecea;
+    --ok:#0f5a2a;
+    --ok-bg:#e8f5ec;
+    --muted:#54655a;
+    --text:#101c12;
+    --shadow:0 2px 8px rgba(0,0,0,0.06), 0 1px 3px rgba(0,0,0,0.04);
+    --shadow-lg:0 8px 24px rgba(0,0,0,0.10), 0 2px 6px rgba(0,0,0,0.05);
+    --radius:16px;
+    --radius-sm:10px;
+    --bar-height:64px;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent; margin:0; padding:0;}
+  html,body{background:var(--paper); color:var(--text); font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif; font-size:16px; line-height:1.45; overflow-x:hidden;}
+  body{padding-bottom:calc(var(--bar-height) + 28px);}
+
+  header{background:linear-gradient(135deg,var(--accent-dark) 0%,var(--accent) 100%); color:#fff; padding:20px 20px 26px; position:relative; overflow:hidden;}
+  header::before{content:'';position:absolute;top:-50%;right:-20%;width:200px;height:200px;background:rgba(255,255,255,0.06);border-radius:50%;}
+  header .top-row{display:flex; justify-content:space-between; align-items:flex-start; position:relative; z-index:1;}
+  header h1{font-size:24px; font-weight:800; letter-spacing:-0.3px;}
+  header .sub{font-size:13px; font-weight:600; opacity:0.9; margin-top:4px;}
+  header .date-badge{display:inline-block;background:rgba(255,255,255,0.18);padding:4px 12px;border-radius:20px;font-size:12px;font-weight:700;margin-top:10px;}
+  .gear-btn{width:40px;height:40px;border-radius:50%;background:rgba(255,255,255,0.18);border:none;color:#fff;font-size:18px;cursor:pointer;flex-shrink:0;}
+  .gear-btn:active{background:rgba(255,255,255,0.3);}
+
+  main{padding:16px; max-width:480px; margin:0 auto;}
+  .stack{display:flex; flex-direction:column; gap:14px;}
+
+  .card{background:var(--card); border-radius:var(--radius); box-shadow:var(--shadow); padding:20px; position:relative; overflow:hidden;}
+  .card h2{font-size:13px; text-transform:uppercase; letter-spacing:1px; font-weight:800; color:var(--muted); margin-bottom:14px; display:flex; align-items:center; gap:8px;}
+  .card h2 .icon{width:24px;height:24px;background:var(--accent-glow);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:14px;color:var(--accent);}
+
+  .btn{display:flex;align-items:center;justify-content:center;width:100%;padding:15px;font-size:15px;font-weight:700;border-radius:var(--radius-sm);border:none;cursor:pointer;}
+  .btn-primary{background:linear-gradient(135deg,var(--accent) 0%,var(--accent-light) 100%);color:#fff;box-shadow:0 4px 12px rgba(26,122,62,0.25);}
+  .btn-primary:active{transform:translateY(1px);}
+  .btn-secondary{background:var(--panel);color:var(--text);border:1.5px solid var(--line);}
+  .btn-danger{background:#fff;color:var(--warn);border:1.5px solid var(--warn);}
+  .btn-file{background:var(--panel);color:var(--accent);border:2px dashed var(--accent-light);padding:24px 16px;flex-direction:column;gap:8px;}
+  .btn-file .file-icon{font-size:32px;}
+
+  input[type=file]{display:none;}
+
+  .row{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--line);gap:12px;}
+  .row:last-child{border-bottom:none;}
+  .row .label{color:var(--muted);font-weight:600;font-size:13px;}
+  .row .value{font-weight:700;font-size:16px;text-align:right;color:var(--text);}
+
+  .bigstat{text-align:center;padding:18px 0 10px;position:relative;cursor:pointer;}
+  .bigstat .num{font-size:42px;font-weight:900;letter-spacing:-1px;color:var(--accent-dark);line-height:1.1;}
+  .bigstat .cap{font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-top:8px;}
+  .bigstat .subcap{font-size:11px;font-weight:600;color:var(--muted);margin-top:4px;opacity:0.85;}
+  .bigstat .tapcap{font-size:10px;font-weight:700;color:var(--accent);margin-top:6px;text-transform:uppercase;letter-spacing:0.5px;}
+  .bigstat .divider{width:40px;height:3px;background:linear-gradient(90deg,var(--accent),var(--accent-light));border-radius:2px;margin:12px auto 0;}
+
+  .table-wrap{overflow-x:auto;margin:0 -4px;padding:0 4px;}
+  table{width:100%;border-collapse:collapse;font-size:14px;}
+  th,td{padding:10px 8px;text-align:left;border-bottom:1px solid var(--line);}
+  th{font-size:11px;text-transform:uppercase;color:var(--muted);font-weight:700;letter-spacing:0.5px;background:var(--panel);}
+  td{font-weight:600;}
+  td.num{text-align:right;font-weight:700;font-variant-numeric:tabular-nums;color:var(--text);}
+  tr:last-child td{border-bottom:none;}
+
+  .field-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;}
+  .field{display:flex;flex-direction:column;gap:5px;}
+  .field label{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;}
+  .field input,.field select{font-size:17px;padding:12px 8px;border:1.5px solid var(--line);border-radius:var(--radius-sm);text-align:center;width:100%;font-weight:700;background:var(--card);color:var(--text);}
+  .field input:focus,.field select:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-glow);}
+  .field select{cursor:pointer;appearance:none;-webkit-appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2354655a' d='M6 8L1 3h10z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;padding-right:28px;}
+  .field input.text-left{text-align:left;}
+
+  .status-banner{margin-top:14px;padding:14px 16px;border-radius:var(--radius-sm);text-align:center;font-weight:800;font-size:15px;}
+  .status-ok{background:var(--ok-bg);color:var(--ok);border:1.5px solid #b8e0c4;}
+  .status-bad{background:var(--warn-bg);color:var(--warn);border:1.5px solid #f5c6c2;}
+  .status-sub{font-size:12px;font-weight:600;margin-top:4px;opacity:0.9;}
+
+  .empty{text-align:center;padding:44px 20px;color:var(--muted);}
+  .empty .icon-wrap{width:76px;height:76px;background:var(--accent-glow);border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;font-size:34px;}
+  .empty strong{font-size:17px;color:var(--text);display:block;margin-bottom:6px;}
+  .empty p{font-size:14px;}
+
+  .mode-tabs{display:flex;gap:0;background:var(--panel);border-radius:var(--radius-sm);padding:4px;}
+  .mode-tab{flex:1;padding:12px 4px;font-size:12.5px;font-weight:700;text-align:center;background:transparent;color:var(--muted);cursor:pointer;border:none;border-radius:8px;}
+  .mode-tab.active{background:var(--card);color:var(--accent);box-shadow:var(--shadow);}
+
+  .tab-nav{display:flex;gap:0;background:var(--panel);border-radius:var(--radius-sm);padding:4px;position:sticky;top:8px;z-index:10;}
+  .tab-btn{flex:1;padding:11px 4px;font-size:12.5px;font-weight:700;text-align:center;background:transparent;color:var(--muted);cursor:pointer;border:none;border-radius:8px;}
+  .tab-btn.active{background:var(--card);color:var(--accent);box-shadow:var(--shadow);}
+  .tab-panel{display:none;}
+  .tab-panel.active{display:flex;flex-direction:column;gap:14px;}
+
+  .poly-wrap{background:var(--panel);border-radius:var(--radius-sm);padding:16px;}
+  .poly-wrap h3{font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;text-align:center;}
+  .poly-canvas{width:100%;height:200px;background:#fff;border-radius:8px;border:1px solid var(--line);display:block;}
+
+  .note{font-size:12.5px;color:var(--muted);font-weight:600;line-height:1.55;padding:12px 14px;background:var(--panel);border-radius:var(--radius-sm);}
+  .note.warn{background:var(--warn-bg);color:var(--warn);}
+
+  .footer-note{text-align:center;font-size:11px;color:var(--muted);font-weight:600;padding:16px 16px 2px;}
+  .build-note{text-align:center;font-size:10px;color:var(--muted);font-weight:600;opacity:0.65;padding-bottom:8px;}
+  .hidden{display:none !important;}
+  .toast{position:fixed;bottom:calc(var(--bar-height) + 14px);left:50%;transform:translateX(-50%);background:var(--accent-dark);color:#fff;padding:10px 20px;border-radius:20px;font-size:13px;font-weight:700;box-shadow:var(--shadow-lg);z-index:200;}
+
+  .bottom-bar{position:fixed;left:0;right:0;bottom:0;background:var(--card);border-top:1px solid var(--line);display:flex;gap:8px;padding:10px 16px calc(10px + env(safe-area-inset-bottom));z-index:90;box-shadow:0 -4px 16px rgba(0,0,0,0.06);}
+  .bottom-bar .btn{padding:13px;font-size:14px;}
+
+  .modal-overlay{position:fixed;inset:0;background:rgba(15,26,18,0.5);display:flex;align-items:flex-end;justify-content:center;z-index:300;}
+  .modal-sheet{background:var(--card);width:100%;max-width:480px;border-radius:20px 20px 0 0;padding:20px;box-shadow:var(--shadow-lg);max-height:80vh;overflow-y:auto;}
+  .modal-sheet h2{font-size:15px;font-weight:800;color:var(--text);margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;}
+  .modal-close{background:var(--panel);border:none;width:32px;height:32px;border-radius:50%;font-size:16px;color:var(--muted);cursor:pointer;}
+
+  .unit-toggle{display:flex;background:var(--panel);border-radius:var(--radius-sm);padding:3px;margin-bottom:12px;}
+  .unit-toggle button{flex:1;padding:9px;font-size:12.5px;font-weight:700;background:transparent;border:none;border-radius:7px;color:var(--muted);cursor:pointer;}
+  .unit-toggle button.active{background:var(--card);color:var(--accent);box-shadow:var(--shadow);}
+
+  ::-webkit-scrollbar{width:4px;}
+  ::-webkit-scrollbar-track{background:transparent;}
+  ::-webkit-scrollbar-thumb{background:var(--line);border-radius:4px;}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="top-row">
+    <div>
+      <h1>Survey Calculator</h1>
+      <div class="sub">Land Area &amp; Tolerance Check</div>
+      <div class="date-badge" id="dateLabel">—</div>
+    </div>
+    <button class="gear-btn" id="headerGearBtn" title="Settings">&#9881;</button>
+  </div>
+</header>
+
+<main class="stack" id="app"></main>
+
+<div class="footer-note">Offline tool. Results clear at start of next day — copy your summary before then.</div>
+<div class="build-note" id="buildNote"></div>
+
+<div id="modalRoot"></div>
+
+<script>
+/* ================= CONSTANTS ================= */
+const METERS_TO_FEET = 3.280839895013123;
+const SQFT_PER_SQM = 10.76391041671;
+const MARLA_PER_KANAL = 20;
+const SARSAHI_PER_MARLA = 9;
+const ACRE_SQFT = 43560;
+const TOLERANCE_PCT = 10; // company SOP
+
+/* Static build label — set manually, never auto-generated from today's date. */
+const BUILD_DATE = '9 July';
+
+const STORAGE_KEY     = 'survey_data_v5';
+const MANUAL_KEY      = 'survey_manual_v5';
+const CONVERTER_KEY   = 'survey_converter_v5';
+const DATE_KEY        = 'survey_date_v5';
+const MARLA_MODE_KEY  = 'survey_marla_mode_v5';
+const MARLA_CUSTOM_KEY= 'survey_marla_custom_v5';
+
+const MARLA_PRESETS = {
+  revenue:   { label: 'Revenue (272.25 sq ft)',  value: 272.25 },
+  realestate:{ label: 'Real Estate (225 sq ft)', value: 225 },
+  municipal: { label: 'Municipal (250 sq ft)',   value: 250 }
+};
+
+/* ================= DATE / STORAGE ================= */
+function todayStr(){ const d = new Date(); return d.getFullYear()+'-'+(d.getMonth()+1)+'-'+d.getDate(); }
+function checkDayReset(){
+  const stored = localStorage.getItem(DATE_KEY);
+  const today = todayStr();
+  if(stored !== today){
+    localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem(MANUAL_KEY);
+    localStorage.removeItem(CONVERTER_KEY);
+    localStorage.setItem(DATE_KEY, today);
+  }
+}
+function saveSurvey(data){ localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); localStorage.setItem(DATE_KEY, todayStr()); }
+function loadSurvey(){ const raw = localStorage.getItem(STORAGE_KEY); return raw ? JSON.parse(raw) : null; }
+function clearSurvey(){ localStorage.removeItem(STORAGE_KEY); }
+function saveManual(data){ localStorage.setItem(MANUAL_KEY, JSON.stringify(data)); localStorage.setItem(DATE_KEY, todayStr()); }
+function loadManual(){ const raw = localStorage.getItem(MANUAL_KEY); return raw ? JSON.parse(raw) : null; }
+function clearManual(){ localStorage.removeItem(MANUAL_KEY); }
+function saveConverter(data){ localStorage.setItem(CONVERTER_KEY, JSON.stringify(data)); localStorage.setItem(DATE_KEY, todayStr()); }
+function loadConverter(){ const raw = localStorage.getItem(CONVERTER_KEY); return raw ? JSON.parse(raw) : null; }
+function clearConverter(){ localStorage.removeItem(CONVERTER_KEY); }
+
+function getMarlaMode(){ return localStorage.getItem(MARLA_MODE_KEY) || 'revenue'; }
+function setMarlaMode(mode){ localStorage.setItem(MARLA_MODE_KEY, mode); }
+function getCustomRate(){ const v = parseFloat(localStorage.getItem(MARLA_CUSTOM_KEY)); return (!isNaN(v) && v > 0) ? v : 225; }
+function setCustomRate(v){ localStorage.setItem(MARLA_CUSTOM_KEY, v); }
+function getMarlaRate(){ const mode = getMarlaMode(); if(mode === 'custom') return getCustomRate(); return MARLA_PRESETS[mode] ? MARLA_PRESETS[mode].value : 272.25; }
+function getMarlaRateLabel(){ const mode = getMarlaMode(); if(mode === 'custom') return 'Custom (' + getCustomRate() + ' sq ft)'; return MARLA_PRESETS[mode] ? MARLA_PRESETS[mode].label : ''; }
+
+/* ================= LAT/LON -> UTM (WGS84) ================= */
+function toRad(d){ return d * Math.PI / 180; }
+function latLonToUTM(lat, lon){
+  const a = 6378137.0, eccSq = 0.00669438, k0 = 0.9996;
+  const latRad = toRad(lat), lonRad = toRad(lon);
+  const zoneNumber = Math.floor((lon + 180) / 6) + 1;
+  const lonOrigin = (zoneNumber - 1) * 6 - 180 + 3;
+  const lonOriginRad = toRad(lonOrigin);
+  const eccPrimeSq = eccSq / (1 - eccSq);
+  const N = a / Math.sqrt(1 - eccSq * Math.sin(latRad) * Math.sin(latRad));
+  const T = Math.tan(latRad) * Math.tan(latRad);
+  const C = eccPrimeSq * Math.cos(latRad) * Math.cos(latRad);
+  const A = Math.cos(latRad) * (lonRad - lonOriginRad);
+  const M = a * (
+      (1 - eccSq/4 - 3*eccSq*eccSq/64 - 5*Math.pow(eccSq,3)/256) * latRad
+    - (3*eccSq/8 + 3*eccSq*eccSq/32 + 45*Math.pow(eccSq,3)/1024) * Math.sin(2*latRad)
+    + (15*eccSq*eccSq/256 + 45*Math.pow(eccSq,3)/1024) * Math.sin(4*latRad)
+    - (35*Math.pow(eccSq,3)/3072) * Math.sin(6*latRad));
+  let easting = k0*N*(A + (1-T+C)*Math.pow(A,3)/6 + (5-18*T+T*T+72*C-58*eccPrimeSq)*Math.pow(A,5)/120) + 500000.0;
+  let northing = k0*(M + N*Math.tan(latRad)*(A*A/2 + (5-T+9*C+4*C*C)*Math.pow(A,4)/24 + (61-58*T+T*T+600*C-330*eccPrimeSq)*Math.pow(A,6)/720));
+  if(lat < 0) northing += 10000000.0;
+  return {x: easting, y: northing, zone: zoneNumber};
+}
+
+/* ================= GEOMETRY ================= */
+function shoelaceArea(points){
+  let sum = 0; const n = points.length;
+  for(let i=0;i<n;i++){ const p1=points[i], p2=points[(i+1)%n]; sum += (p1.x*p2.y)-(p2.x*p1.y); }
+  return Math.abs(sum)/2;
+}
+function dist(p1,p2){ return Math.sqrt((p2.x-p1.x)**2 + (p2.y-p1.y)**2); }
+function perimeterAndSides(points){
+  const n = points.length; const sides=[]; let perimeter=0;
+  for(let i=0;i<n;i++){ const p1=points[i], p2=points[(i+1)%n]; const d=dist(p1,p2); sides.push(d); perimeter+=d; }
+  return {perimeter, sides};
+}
+function findSuspiciousPoints(points, thresholdMeters){
+  const n=points.length; const flagged=[];
+  for(let i=0;i<n;i++) for(let j=i+1;j<n;j++) if(dist(points[i],points[j])<thresholdMeters) flagged.push([i,j]);
+  return flagged;
+}
+
+/* ================= UNIT CONVERSION ================= */
+function sqmToKMS(areaSqm){
+  const sqftPerMarla = getMarlaRate();
+  const totalSqft = areaSqm * SQFT_PER_SQM;
+  const sqftPerKanal = MARLA_PER_KANAL * sqftPerMarla;
+  const kanal = Math.floor(totalSqft / sqftPerKanal);
+  const afterKanal = totalSqft - (kanal * sqftPerKanal);
+  const marla = Math.floor(afterKanal / sqftPerMarla);
+  const remSqft = afterKanal - (marla * sqftPerMarla);
+  const sarsahiUnitSqft = sqftPerMarla / SARSAHI_PER_MARLA;
+  const sarsahi = remSqft / sarsahiUnitSqft;
+  return { kanal, marla, remSqft, sarsahi, totalSqft };
+}
+function kmsToSqm(kanal, marla, remSqft){
+  const sqftPerMarla = getMarlaRate();
+  const totalSqft = ((kanal * MARLA_PER_KANAL) + marla) * sqftPerMarla + remSqft;
+  return totalSqft / SQFT_PER_SQM;
+}
+function sqftToSqm(sqft){ return sqft / SQFT_PER_SQM; }
+
+/* ================= CSV PARSING ================= */
+function parseCSV(text){
+  const lines = text.split(/\r?\n/).filter(l => l.trim().length > 0);
+  if(lines.length < 2) throw new Error('File has no data rows.');
+  const header = lines[0].split(',').map(h => h.trim().toLowerCase());
+  const nameIdx = header.findIndex(h => h.includes('name'));
+  const latIdx = header.findIndex(h => h.includes('lat'));
+  const lonIdx = header.findIndex(h => h.includes('lon'));
+  if(latIdx === -1 || lonIdx === -1) throw new Error('Could not find Latitude/Longitude columns.');
+  const points = [];
+  for(let i=1;i<lines.length;i++){
+    const cols = lines[i].split(',');
+    const lat = parseFloat(cols[latIdx]), lon = parseFloat(cols[lonIdx]);
+    if(isNaN(lat) || isNaN(lon)) continue;
+    const name = nameIdx !== -1 && cols[nameIdx] ? cols[nameIdx].trim() : ('Pt' + i);
+    points.push({name, lat, lon});
+  }
+  if(points.length < 3) throw new Error('Need at least 3 valid points to form a polygon.');
+  return points;
+}
+
+/* ================= COMPUTATION PIPELINE ================= */
+function computeSurvey(rawPoints, filename){
+  const utmPoints = rawPoints.map(p => { const u = latLonToUTM(p.lat, p.lon); return {name:p.name, x:u.x, y:u.y, zone:u.zone}; });
+  const zones = new Set(utmPoints.map(p => p.zone));
+  const multiZone = zones.size > 1;
+  const areaSqm = shoelaceArea(utmPoints);
+  const {perimeter, sides} = perimeterAndSides(utmPoints);
+  const kms = sqmToKMS(areaSqm);
+  const suspicious = findSuspiciousPoints(utmPoints, 0.3);
+  return {
+    filename, importedAt: new Date().toISOString(), rawPoints, zone: utmPoints[0].zone, multiZone, suspicious,
+    areaSqm, perimeter, sides,
+    kanal: kms.kanal, marla: kms.marla, remSqft: kms.remSqft, sarsahi: kms.sarsahi, totalSqft: kms.totalSqft,
+    marlaRateUsed: getMarlaRate(), tolerance: null
+  };
+}
+
+/* ================= FORMATTING ================= */
+function fmtFull(n){ let s = Number(n).toFixed(10); s = s.replace(/0+$/, '').replace(/\.$/, ''); return s; }
+function fmt2(n){ return Number(n).toFixed(2); }
+function fmt4(n){ return Number(n).toFixed(4); }
+function kmsLabel(kanal, marla, remSqft){ return kanal + '-' + marla + '-' + fmt2(remSqft); }
+function kmsSarsahiLabel(kanal, marla, sarsahi){ return kanal + '-' + marla + '-' + fmt2(sarsahi); }
+
+/* ================= POLYGON PREVIEW ================= */
+function drawPolygon(rawPoints, canvasId){
+  const canvas = document.getElementById(canvasId);
+  if(!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.getBoundingClientRect();
+  canvas.width = rect.width * dpr; canvas.height = rect.height * dpr;
+  ctx.scale(dpr, dpr);
+  const w = rect.width, h = rect.height;
+  const pts = rawPoints.map(p => latLonToUTM(p.lat, p.lon));
+  let minX=Infinity, minY=Infinity, maxX=-Infinity, maxY=-Infinity;
+  pts.forEach(p => { minX=Math.min(minX,p.x); minY=Math.min(minY,p.y); maxX=Math.max(maxX,p.x); maxY=Math.max(maxY,p.y); });
+  const pad = 30;
+  const spanX = Math.max(maxX-minX, 0.001), spanY = Math.max(maxY-minY, 0.001);
+  const scale = Math.min((w-pad*2)/spanX, (h-pad*2)/spanY);
+  const offX = (w - spanX*scale)/2 - minX*scale;
+  const offY = (h + spanY*scale)/2 + minY*scale;
+  ctx.clearRect(0,0,w,h);
+  ctx.beginPath();
+  pts.forEach((p,i) => { const x=p.x*scale+offX, y=offY-p.y*scale; if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y); });
+  ctx.closePath();
+  ctx.fillStyle = 'rgba(26,122,62,0.08)'; ctx.fill();
+  ctx.strokeStyle = '#1a7a3e'; ctx.lineWidth = 2; ctx.stroke();
+  pts.forEach((p,i) => {
+    const x=p.x*scale+offX, y=offY-p.y*scale;
+    ctx.beginPath(); ctx.arc(x,y,5,0,Math.PI*2); ctx.fillStyle='#1a7a3e'; ctx.fill();
+    ctx.beginPath(); ctx.arc(x,y,3,0,Math.PI*2); ctx.fillStyle='#fff'; ctx.fill();
+    ctx.fillStyle='#101c12'; ctx.font='bold 11px sans-serif'; ctx.textAlign='center';
+    ctx.fillText(rawPoints[i].name, x, y-10);
+  });
+}
+
+/* ================= TOLERANCE ================= */
+function checkTolerance(actualSqm, expectedSqm){
+  const diff = actualSqm - expectedSqm;
+  const pct = expectedSqm !== 0 ? (diff / expectedSqm) * 100 : 0;
+  const pass = Math.abs(pct) <= TOLERANCE_PCT;
+  return { diff, pct, pass };
+}
+
+/* ================= UNIT CONVERTER ================= */
+const CONVERT_UNITS = {
+  kms:   { label: 'Kanal-Marla-Sqft' },
+  marla: { label: 'Marla (decimal)' },
+  acres: { label: 'Acres (decimal)' },
+  sqft:  { label: 'Square Feet' },
+  sqm:   { label: 'Square Meters' }
+};
+/* Converts any supported input unit into sqm, the app's common internal unit. */
+function convertInputToSqm(unit, v){
+  const rate = getMarlaRate();
+  if(unit === 'kms')   return kmsToSqm(v.kanal||0, v.marla||0, v.sqft||0);
+  if(unit === 'marla') return sqftToSqm((v.marla||0) * rate);
+  if(unit === 'acres') return sqftToSqm((v.acres||0) * ACRE_SQFT);
+  if(unit === 'sqft')  return sqftToSqm(v.sqft||0);
+  return v.sqm||0; // sqm
+}
+function computeAllConversions(areaSqm){
+  const rate = getMarlaRate();
+  const kms = sqmToKMS(areaSqm);
+  const totalMarlaDecimal = kms.totalSqft / rate;
+  const totalSarsahiDecimal = kms.totalSqft / (rate / SARSAHI_PER_MARLA);
+  const acres = kms.totalSqft / ACRE_SQFT;
+  return { ...kms, totalMarlaDecimal, totalSarsahiDecimal, acres };
+}
+
+/* ================= TOAST / CLIPBOARD ================= */
+function showToast(msg){
+  const existing = document.querySelector('.toast'); if(existing) existing.remove();
+  const t = document.createElement('div'); t.className='toast'; t.textContent=msg;
+  document.body.appendChild(t); setTimeout(() => t.remove(), 2200);
+}
+function copyText(text){
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(text).then(() => showToast('Copied')).catch(() => fallbackCopy(text));
+  } else fallbackCopy(text);
+}
+function fallbackCopy(text){
+  const ta = document.createElement('textarea'); ta.value=text; ta.style.position='fixed'; ta.style.left='-9999px';
+  document.body.appendChild(ta); ta.select();
+  try { document.execCommand('copy'); showToast('Copied'); } catch(e){ showToast('Copy failed'); }
+  document.body.removeChild(ta);
+}
+function buildSummaryText(data, isManual){
+  const lines = [];
+  lines.push('Survey Calculator — ' + new Date().toDateString());
+  if(!isManual) lines.push('File: ' + data.filename);
+  lines.push('Marla rate: ' + getMarlaRateLabel());
+  if(isManual) lines.push('Input: ' + fmtFull(data.inputValue) + ' ' + (data.inputUnit === 'sqft' ? 'sq ft' : 'sqm'));
+  lines.push('Area: ' + fmtFull(data.areaSqm) + ' sqm  (' + fmtFull(data.totalSqft) + ' sq ft)');
+  lines.push('Result: ' + kmsLabel(data.kanal, data.marla, data.remSqft) + '  (Kanal-Marla-sqft)');
+  lines.push('Traditional: ' + kmsSarsahiLabel(data.kanal, data.marla, data.sarsahi) + '  (Kanal-Marla-Sarsahi)');
+  if(!isManual) lines.push('Perimeter: ' + fmt2(data.perimeter) + ' m (' + fmt2(data.perimeter*METERS_TO_FEET) + ' ft)');
+  if(data.tolerance){
+    lines.push('Tolerance vs expected: ' + (data.tolerance.pass?'PASS':'FAIL') + '  (' + (data.tolerance.pct>=0?'+':'') + fmt2(data.tolerance.pct) + '%)');
+  }
+  return lines.join('\n');
+}
+function buildConverterSummaryText(data){
+  const lines = [];
+  lines.push('Unit Converter — ' + new Date().toDateString());
+  if(data.khasra) lines.push('Khasra No: ' + data.khasra);
+  lines.push('Marla rate used: ' + getMarlaRateLabel());
+  lines.push('Input: ' + data.inputSummary);
+  lines.push('Kanal-Marla-Sqft: ' + kmsLabel(data.kanal, data.marla, data.remSqft));
+  lines.push('Total Marla (decimal): ' + fmt2(data.totalMarlaDecimal));
+  lines.push('Total Sarsahi (decimal): ' + fmt2(data.totalSarsahiDecimal));
+  lines.push('Acres: ' + fmt4(data.acres));
+  lines.push('Sq Ft: ' + fmtFull(data.totalSqft));
+  lines.push('Sq Meters: ' + fmtFull(data.areaSqm));
+  return lines.join('\n');
+}
+
+/* ================= MODAL (SETTINGS) ================= */
+function openSettingsModal(onChange){
+  const mode = getMarlaMode(); const custom = getCustomRate();
+  let opts = '';
+  Object.keys(MARLA_PRESETS).forEach(key => { opts += `<option value="${key}" ${mode===key?'selected':''}>${MARLA_PRESETS[key].label}</option>`; });
+  opts += `<option value="custom" ${mode==='custom'?'selected':''}>Custom</option>`;
+  const root = document.getElementById('modalRoot');
+  root.innerHTML = `
+    <div class="modal-overlay" id="settingsOverlay">
+      <div class="modal-sheet">
+        <h2>Settings <button class="modal-close" id="closeSettings">&times;</button></h2>
+        <div class="field">
+          <label>1 Marla = ? sq ft</label>
+          <select id="marlaRateSelect">${opts}</select>
+        </div>
+        <div class="field" id="customRateField" style="margin-top:10px;${mode==='custom'?'':'display:none;'}">
+          <label>Custom sq ft per Marla</label>
+          <input type="number" id="customRateInput" inputmode="decimal" step="any" value="${custom}">
+        </div>
+        <div class="note" style="margin-top:12px;">Acre and Murabba figures shift depending on this rate — only the Revenue (272.25) rate gives the standard 1 Acre = 8 Kanal.</div>
+      </div>
+    </div>
+  `;
+  document.getElementById('closeSettings').onclick = closeSettingsModal;
+  document.getElementById('settingsOverlay').onclick = (e) => { if(e.target.id === 'settingsOverlay') closeSettingsModal(); };
+  document.getElementById('marlaRateSelect').onchange = function(){
+    setMarlaMode(this.value);
+    document.getElementById('customRateField').style.display = this.value === 'custom' ? '' : 'none';
+    if(this.value !== 'custom'){ onChange && onChange(); }
+  };
+  document.getElementById('customRateInput').onchange = function(){
+    const v = parseFloat(this.value);
+    if(!isNaN(v) && v > 0){ setCustomRate(v); onChange && onChange(); }
+  };
+}
+function closeSettingsModal(){ document.getElementById('modalRoot').innerHTML = ''; }
+
+/* ================= RENDERING ================= */
+const app = document.getElementById('app');
+const dateLabel = document.getElementById('dateLabel');
+let currentMode = 'csv';
+let currentResultTab = 'area';
+let currentManualTab = 'area';
+let manualUnit = 'sqm';
+let convertUnit = 'kms';
+
+document.getElementById('headerGearBtn').onclick = () => openSettingsModal(render);
+document.getElementById('buildNote').textContent = 'Build: ' + BUILD_DATE;
+
+function render(){
+  checkDayReset();
+  dateLabel.textContent = new Date().toDateString();
+  const data = loadSurvey();
+  const manualData = loadManual();
+  const convData = loadConverter();
+  if(data) renderResult(data);
+  else if(manualData) renderManualResult(manualData);
+  else if(convData) renderConvertResult(convData);
+  else renderEmpty();
+}
+
+function renderEmpty(){
+  removeBottomBar();
+  app.innerHTML = `
+    <div class="mode-tabs">
+      <button class="mode-tab ${currentMode==='csv'?'active':''}" data-mode="csv">Import CSV</button>
+      <button class="mode-tab ${currentMode==='manual'?'active':''}" data-mode="manual">Manual Entry</button>
+      <button class="mode-tab ${currentMode==='convert'?'active':''}" data-mode="convert">Unit Converter</button>
+    </div>
+
+    <div id="csvSection" class="${currentMode==='csv'?'':'hidden'}">
+      <div class="card">
+        <div class="empty">
+          <div class="icon-wrap">&#128193;</div>
+          <strong>No survey imported today</strong>
+          <p>Import a SurPad CSV export to begin</p>
+        </div>
+      </div>
+      <button class="btn btn-file" id="importBtn" style="margin-top:14px;">
+        <span class="file-icon">&#128194;</span><span>Tap to Import CSV File</span>
+      </button>
+      <input type="file" id="fileInput" accept=".csv,text/csv">
+    </div>
+
+    <div id="manualSection" class="${currentMode==='manual'?'':'hidden'}">
+      <div class="card">
+        <h2><span class="icon">&#9998;</span> Manual Entry</h2>
+        <div class="unit-toggle">
+          <button class="manual-unit-btn ${manualUnit==='sqm'?'active':''}" data-unit="sqm">Square Meters</button>
+          <button class="manual-unit-btn ${manualUnit==='sqft'?'active':''}" data-unit="sqft">Square Feet</button>
+        </div>
+        <div class="field">
+          <label id="manualAreaLabel">Area in ${manualUnit==='sqm' ? 'Square Meters' : 'Square Feet'}</label>
+          <input type="number" id="manualArea" inputmode="decimal" step="any" placeholder="${manualUnit==='sqm' ? 'e.g. 5000.123' : 'e.g. 5400'}">
+        </div>
+        <button class="btn btn-primary" id="convertBtn" style="margin-top:14px;">Convert to Kanal-Marla</button>
+      </div>
+    </div>
+
+    <div id="convertSection" class="${currentMode==='convert'?'':'hidden'}">
+      <div class="card">
+        <h2><span class="icon">&#8644;</span> Unit Converter</h2>
+        <div class="field" style="margin-bottom:12px;">
+          <label>Khasra No. (optional)</label>
+          <input type="text" id="khasraInput" class="text-left" placeholder="e.g. 1122">
+        </div>
+        <div class="field" style="margin-bottom:12px;">
+          <label>Enter Area In</label>
+          <select id="convertUnitSelect">
+            ${Object.keys(CONVERT_UNITS).map(k => `<option value="${k}" ${convertUnit===k?'selected':''}>${CONVERT_UNITS[k].label}</option>`).join('')}
+          </select>
+        </div>
+        <div id="convertInputFields"></div>
+        <button class="btn btn-primary" id="doConvertBtn" style="margin-top:14px;">Convert</button>
+      </div>
+    </div>
+  `;
+
+  document.querySelectorAll('.mode-tab').forEach(tab => { tab.onclick = function(){ currentMode = this.dataset.mode; render(); }; });
+
+  const importBtn = document.getElementById('importBtn');
+  const fileInput = document.getElementById('fileInput');
+  if(importBtn && fileInput){
+    importBtn.onclick = () => fileInput.click();
+    fileInput.onchange = function(){
+      const file = this.files[0]; if(!file) return;
+      const reader = new FileReader();
+      reader.onload = function(e){
+        try{
+          const points = parseCSV(e.target.result);
+          const result = computeSurvey(points, file.name);
+          saveSurvey(result);
+          currentResultTab = 'area';
+          render();
+        }catch(err){ showToast(err.message || 'Could not read file'); }
+      };
+      reader.readAsText(file);
+    };
+  }
+
+  document.querySelectorAll('.manual-unit-btn').forEach(btn => {
+    btn.onclick = function(){
+      manualUnit = this.dataset.unit;
+      document.querySelectorAll('.manual-unit-btn').forEach(b => b.classList.toggle('active', b===this));
+      document.getElementById('manualAreaLabel').textContent = 'Area in ' + (manualUnit==='sqm' ? 'Square Meters' : 'Square Feet');
+      document.getElementById('manualArea').placeholder = manualUnit==='sqm' ? 'e.g. 5000.123' : 'e.g. 5400';
+    };
+  });
+
+  const convertBtn = document.getElementById('convertBtn');
+  if(convertBtn){
+    convertBtn.onclick = function(){
+      const val = parseFloat(document.getElementById('manualArea').value);
+      if(isNaN(val) || val <= 0){ showToast('Enter a valid area'); return; }
+      const areaSqm = manualUnit === 'sqft' ? sqftToSqm(val) : val;
+      const kms = sqmToKMS(areaSqm);
+      const result = {
+        inputUnit: manualUnit, inputValue: val,
+        areaSqm, totalSqft: kms.totalSqft, kanal: kms.kanal, marla: kms.marla,
+        remSqft: kms.remSqft, sarsahi: kms.sarsahi, marlaRateUsed: getMarlaRate(), tolerance: null
+      };
+      saveManual(result);
+      currentManualTab = 'area';
+      render();
+    };
+  }
+
+  renderConvertInputFields();
+  const unitSelect = document.getElementById('convertUnitSelect');
+  if(unitSelect){
+    unitSelect.onchange = function(){ convertUnit = this.value; renderConvertInputFields(); };
+  }
+  const doConvertBtn = document.getElementById('doConvertBtn');
+  if(doConvertBtn){
+    doConvertBtn.onclick = function(){
+      const khasra = document.getElementById('khasraInput').value.trim();
+      const v = {};
+      let inputSummary = '';
+      if(convertUnit === 'kms'){
+        v.kanal = parseFloat(document.getElementById('cvKanal').value) || 0;
+        v.marla = parseFloat(document.getElementById('cvMarla').value) || 0;
+        v.sqft  = parseFloat(document.getElementById('cvSqft').value) || 0;
+        if(v.kanal===0 && v.marla===0 && v.sqft===0){ showToast('Enter a value'); return; }
+        inputSummary = kmsLabel(v.kanal, v.marla, v.sqft) + ' (Kanal-Marla-Sqft)';
+      } else if(convertUnit === 'marla'){
+        v.marla = parseFloat(document.getElementById('cvMarlaOnly').value);
+        if(isNaN(v.marla) || v.marla < 0){ showToast('Enter a valid Marla value'); return; }
+        inputSummary = fmt2(v.marla) + ' Marla';
+      } else if(convertUnit === 'acres'){
+        v.acres = parseFloat(document.getElementById('cvAcres').value);
+        if(isNaN(v.acres) || v.acres < 0){ showToast('Enter a valid Acres value'); return; }
+        inputSummary = fmt4(v.acres) + ' Acres';
+      } else if(convertUnit === 'sqft'){
+        v.sqft = parseFloat(document.getElementById('cvSqftOnly').value);
+        if(isNaN(v.sqft) || v.sqft < 0){ showToast('Enter a valid Sq Ft value'); return; }
+        inputSummary = fmtFull(v.sqft) + ' Sq Ft';
+      } else {
+        v.sqm = parseFloat(document.getElementById('cvSqm').value);
+        if(isNaN(v.sqm) || v.sqm < 0){ showToast('Enter a valid Sq Meters value'); return; }
+        inputSummary = fmtFull(v.sqm) + ' Sq Meters';
+      }
+      const areaSqm = convertInputToSqm(convertUnit, v);
+      const all = computeAllConversions(areaSqm);
+      const result = { khasra, inputUnit: convertUnit, inputSummary, areaSqm, ...all, marlaRateUsed: getMarlaRate() };
+      saveConverter(result);
+      render();
+    };
+  }
+}
+
+function renderConvertInputFields(){
+  const el = document.getElementById('convertInputFields');
+  if(!el) return;
+  if(convertUnit === 'kms'){
+    el.innerHTML = `<div class="field-grid">
+      <div class="field"><label>Kanal</label><input type="number" id="cvKanal" inputmode="numeric" min="0"></div>
+      <div class="field"><label>Marla</label><input type="number" id="cvMarla" inputmode="numeric" min="0"></div>
+      <div class="field"><label>Sq Ft</label><input type="number" id="cvSqft" inputmode="decimal" step="any"></div>
+    </div>`;
+  } else if(convertUnit === 'marla'){
+    el.innerHTML = `<div class="field"><label>Marla (decimal)</label><input type="number" id="cvMarlaOnly" inputmode="decimal" step="any" placeholder="e.g. 22.5"></div>`;
+  } else if(convertUnit === 'acres'){
+    el.innerHTML = `<div class="field"><label>Acres (decimal)</label><input type="number" id="cvAcres" inputmode="decimal" step="any" placeholder="e.g. 1.25"></div>`;
+  } else if(convertUnit === 'sqft'){
+    el.innerHTML = `<div class="field"><label>Square Feet</label><input type="number" id="cvSqftOnly" inputmode="decimal" step="any" placeholder="e.g. 5400"></div>`;
+  } else {
+    el.innerHTML = `<div class="field"><label>Square Meters</label><input type="number" id="cvSqm" inputmode="decimal" step="any" placeholder="e.g. 500"></div>`;
+  }
+}
+
+/* ---- Tab nav helper ---- */
+function tabNavHTML(tabs, active){
+  return `<div class="tab-nav">${tabs.map(t => `<button class="tab-btn ${active===t.key?'active':''}" data-tab="${t.key}">${t.label}</button>`).join('')}</div>`;
+}
+function bindTabNav(onSelect){
+  document.querySelectorAll('.tab-btn').forEach(btn => { btn.onclick = function(){ onSelect(this.dataset.tab); }; });
+}
+
+/* ---- Tolerance panel (shared) ---- */
+function toleranceHTML(existing){
+  return `
+    <div class="card">
+      <h2><span class="icon">&#9878;</span> Tolerance Check</h2>
+      <div class="note" style="margin-bottom:14px;">Company SOP: &#177;${TOLERANCE_PCT}% against expected area from land record.</div>
+      <div class="field-grid">
+        <div class="field"><label>Kanal</label><input type="number" id="expKanal" inputmode="numeric" min="0" value="${existing?existing.expKanal:''}"></div>
+        <div class="field"><label>Marla</label><input type="number" id="expMarla" inputmode="numeric" min="0" value="${existing?existing.expMarla:''}"></div>
+        <div class="field"><label>Sq Ft</label><input type="number" id="expSqft" inputmode="decimal" step="any" value="${existing?existing.expSqft:''}"></div>
+      </div>
+      <button class="btn btn-secondary" id="checkTolBtn" style="margin-top:14px;">Check Tolerance</button>
+      <div id="tolResult"></div>
+    </div>
+  `;
+}
+function bindTolerance(getActualSqm, existing, onResult){
+  if(existing){
+    const box = document.getElementById('tolResult');
+    box.innerHTML = `<div class="status-banner ${existing.pass?'status-ok':'status-bad'}">${existing.pass?'WITHIN TOLERANCE':'OUT OF TOLERANCE'}<div class="status-sub">Diff: ${fmt2(existing.diff)} sqm  (${existing.pct>=0?'+':''}${fmt2(existing.pct)}%)</div></div>`;
+  }
+  document.getElementById('checkTolBtn').onclick = function(){
+    const k = parseFloat(document.getElementById('expKanal').value) || 0;
+    const m = parseFloat(document.getElementById('expMarla').value) || 0;
+    const s = parseFloat(document.getElementById('expSqft').value) || 0;
+    const expectedSqm = kmsToSqm(k, m, s);
+    const actualSqm = getActualSqm();
+    const result = checkTolerance(actualSqm, expectedSqm);
+    document.getElementById('tolResult').innerHTML = `<div class="status-banner ${result.pass?'status-ok':'status-bad'}">${result.pass?'WITHIN TOLERANCE':'OUT OF TOLERANCE'}<div class="status-sub">Diff: ${fmt2(result.diff)} sqm  (${result.pct>=0?'+':''}${fmt2(result.pct)}%)</div></div>`;
+    onResult({expKanal:k, expMarla:m, expSqft:s, pass:result.pass, pct:result.pct, diff:result.diff});
+  };
+}
+
+/* ================= CSV RESULT ================= */
+function renderResult(data){
+  const flags = [];
+  if(data.multiZone) flags.push('Points span more than one UTM zone — area may be inaccurate. Verify manually.');
+  if(data.suspicious && data.suspicious.length) flags.push(data.suspicious.length + ' pair(s) of points are less than 30cm apart — check for duplicate points.');
+
+  const tabs = [ {key:'area',label:'Area'}, {key:'sides',label:'Sides'}, {key:'tolerance',label:'Tolerance'} ];
+
+  app.innerHTML = `
+    ${tabNavHTML(tabs, currentResultTab)}
+
+    <div class="tab-panel ${currentResultTab==='area'?'active':''}" data-panel="area">
+      <div class="card">
+        <div class="row"><span class="label">File</span><span class="value" style="font-size:13px;">${data.filename}</span></div>
+        <div class="row"><span class="label">Points</span><span class="value">${data.rawPoints.length}</span></div>
+        <div class="row"><span class="label">Marla rate used</span><span class="value" style="font-size:13px;">${getMarlaRateLabel()}</span></div>
+      </div>
+      ${flags.length ? `<div class="note warn">${flags.join('<br>')}</div>` : ''}
+      <div class="poly-wrap">
+        <h3>Parcel Preview</h3>
+        <canvas class="poly-canvas" id="polyCanvas"></canvas>
+      </div>
+      <div class="card">
+        <div class="bigstat" id="copyBigStat" title="Tap to copy">
+          <div class="num">${kmsLabel(data.kanal, data.marla, data.remSqft)}</div>
+          <div class="cap">Kanal &ndash; Marla &ndash; Sq Ft</div>
+          <div class="subcap">matches official app format</div>
+          <div class="divider"></div>
+          <div class="tapcap">Tap to copy</div>
+        </div>
+        <div class="row"><span class="label">Traditional (Sarsahi)</span><span class="value">${kmsSarsahiLabel(data.kanal, data.marla, data.sarsahi)}</span></div>
+        <div class="row"><span class="label">Area (sqm, full precision)</span><span class="value">${fmtFull(data.areaSqm)}</span></div>
+        <div class="row"><span class="label">Area (sq ft, full precision)</span><span class="value">${fmtFull(data.totalSqft)}</span></div>
+        <div class="row"><span class="label">Perimeter</span><span class="value">${fmt2(data.perimeter)} m / ${fmt2(data.perimeter*METERS_TO_FEET)} ft</span></div>
+      </div>
+    </div>
+
+    <div class="tab-panel ${currentResultTab==='sides'?'active':''}" data-panel="sides">
+      <div class="card">
+        <h2><span class="icon">&#128207;</span> Side Lengths</h2>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Side</th><th>Meters</th><th>Feet</th></tr></thead>
+            <tbody>${data.sides.map((s,i) => `<tr><td>${data.rawPoints[i].name} &rarr; ${data.rawPoints[(i+1)%data.rawPoints.length].name}</td><td class="num">${fmt2(s)}</td><td class="num">${fmt2(s*METERS_TO_FEET)}</td></tr>`).join('')}</tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-panel ${currentResultTab==='tolerance'?'active':''}" data-panel="tolerance">
+      ${toleranceHTML(data.tolerance)}
+    </div>
+  `;
+
+  if(currentResultTab === 'area') drawPolygon(data.rawPoints, 'polyCanvas');
+
+  bindTabNav((key) => { currentResultTab = key; render(); });
+
+  document.getElementById('copyBigStat').onclick = () => copyText(kmsLabel(data.kanal, data.marla, data.remSqft));
+
+  if(currentResultTab === 'tolerance'){
+    bindTolerance(() => data.areaSqm, data.tolerance, (tol) => { data.tolerance = tol; saveSurvey(data); });
+  }
+
+  renderBottomBar(() => copyText(buildSummaryText(data, false)), () => { clearSurvey(); currentResultTab='area'; render(); });
+}
+
+/* ================= MANUAL RESULT ================= */
+function renderManualResult(data){
+  const tabs = [ {key:'area',label:'Area'}, {key:'tolerance',label:'Tolerance'} ];
+  if(!['area','tolerance'].includes(currentManualTab)) currentManualTab = 'area';
+
+  const inputLabel = data.inputUnit === 'sqft' ? 'Sq Ft' : 'Sqm';
+
+  app.innerHTML = `
+    ${tabNavHTML(tabs, currentManualTab)}
+
+    <div class="tab-panel ${currentManualTab==='area'?'active':''}" data-panel="area">
+      <div class="card">
+        <div class="row"><span class="label">Input</span><span class="value">${fmtFull(data.inputValue)} ${inputLabel}</span></div>
+        <div class="row"><span class="label">Marla rate used</span><span class="value" style="font-size:13px;">${getMarlaRateLabel()}</span></div>
+        <div class="bigstat" id="copyBigStat" title="Tap to copy">
+          <div class="num">${kmsLabel(data.kanal, data.marla, data.remSqft)}</div>
+          <div class="cap">Kanal &ndash; Marla &ndash; Sq Ft</div>
+          <div class="subcap">matches official app format</div>
+          <div class="divider"></div>
+          <div class="tapcap">Tap to copy</div>
+        </div>
+        <div class="row"><span class="label">Traditional (Sarsahi)</span><span class="value">${kmsSarsahiLabel(data.kanal, data.marla, data.sarsahi)}</span></div>
+        <div class="row"><span class="label">Area (sqm, full precision)</span><span class="value">${fmtFull(data.areaSqm)}</span></div>
+        <div class="row"><span class="label">Area (sq ft, full precision)</span><span class="value">${fmtFull(data.totalSqft)}</span></div>
+      </div>
+    </div>
+
+    <div class="tab-panel ${currentManualTab==='tolerance'?'active':''}" data-panel="tolerance">
+      ${toleranceHTML(data.tolerance)}
+    </div>
+  `;
+
+  bindTabNav((key) => { currentManualTab = key; render(); });
+
+  document.getElementById('copyBigStat').onclick = () => copyText(kmsLabel(data.kanal, data.marla, data.remSqft));
+
+  if(currentManualTab === 'tolerance'){
+    bindTolerance(() => data.areaSqm, data.tolerance, (tol) => { data.tolerance = tol; saveManual(data); });
+  }
+
+  renderBottomBar(() => copyText(buildSummaryText(data, true)), () => { clearManual(); currentManualTab='area'; render(); });
+}
+
+/* ================= CONVERTER RESULT ================= */
+function renderConvertResult(data){
+  app.innerHTML = `
+    <div class="card">
+      ${data.khasra ? `<div class="row"><span class="label">Khasra No.</span><span class="value">${data.khasra}</span></div>` : ''}
+      <div class="row"><span class="label">Input</span><span class="value" style="font-size:13px;">${data.inputSummary}</span></div>
+      <div class="row"><span class="label">Marla rate used</span><span class="value" style="font-size:13px;">${getMarlaRateLabel()}</span></div>
+    </div>
+
+    <div class="note">Acre figure assumes the Marla rate above. Only the Revenue (272.25) rate gives the standard 1 Acre = 8 Kanal.</div>
+
+    <div class="card">
+      <div class="bigstat" id="copyBigStat" title="Tap to copy">
+        <div class="num">${kmsLabel(data.kanal, data.marla, data.remSqft)}</div>
+        <div class="cap">Kanal &ndash; Marla &ndash; Sq Ft</div>
+        <div class="divider"></div>
+        <div class="tapcap">Tap to copy</div>
+      </div>
+      <div class="row"><span class="label">Total Marla (decimal)</span><span class="value">${fmt2(data.totalMarlaDecimal)}</span></div>
+      <div class="row"><span class="label">Total Sarsahi (decimal)</span><span class="value">${fmt2(data.totalSarsahiDecimal)}</span></div>
+      <div class="row"><span class="label">Acres</span><span class="value">${fmt4(data.acres)}</span></div>
+      <div class="row"><span class="label">Sq Ft</span><span class="value">${fmtFull(data.totalSqft)}</span></div>
+      <div class="row"><span class="label">Sq Meters</span><span class="value">${fmtFull(data.areaSqm)}</span></div>
+    </div>
+  `;
+
+  document.getElementById('copyBigStat').onclick = () => copyText(kmsLabel(data.kanal, data.marla, data.remSqft));
+
+  renderBottomBar(() => copyText(buildConverterSummaryText(data)), () => { clearConverter(); render(); });
+}
+
+/* ================= BOTTOM BAR ================= */
+function renderBottomBar(onCopy, onClear){
+  let bar = document.getElementById('bottomBar');
+  if(!bar){ bar = document.createElement('div'); bar.id = 'bottomBar'; bar.className = 'bottom-bar'; document.body.appendChild(bar); }
+  bar.innerHTML = `
+    <button class="btn btn-secondary" id="barCopyBtn">Copy Summary</button>
+    <button class="btn btn-danger" id="barClearBtn">Clear</button>
+  `;
+  document.getElementById('barCopyBtn').onclick = onCopy;
+  document.getElementById('barClearBtn').onclick = onClear;
+}
+function removeBottomBar(){ const bar = document.getElementById('bottomBar'); if(bar) bar.remove(); }
+
+render();
+</script>
+</body>
+</html>
