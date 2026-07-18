@@ -85,6 +85,7 @@
   tr:last-child td{border-bottom:none;}
 
   .field-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;}
+  .field-grid-2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
   .field{display:flex;flex-direction:column;gap:5px;}
   .field label{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;}
   .field input,.field select{font-size:17px;padding:12px 8px;border:1.5px solid var(--line);border-radius:var(--radius-sm);text-align:center;width:100%;font-weight:700;background:var(--card);color:var(--text);}
@@ -369,7 +370,8 @@ const CONVERT_UNITS = {
   marla: { label: 'Marla (decimal)' },
   acres: { label: 'Acres (decimal)' },
   sqft:  { label: 'Square Feet' },
-  sqm:   { label: 'Square Meters' }
+  sqm:   { label: 'Square Meters' },
+  karam: { label: 'Khasra (Karam L\u00d7W)' }
 };
 /* Converts any supported input unit into sqm, the app's common internal unit. */
 function convertInputToSqm(unit, v){
@@ -378,6 +380,11 @@ function convertInputToSqm(unit, v){
   if(unit === 'marla') return sqftToSqm((v.marla||0) * rate);
   if(unit === 'acres') return sqftToSqm((v.acres||0) * ACRE_SQFT);
   if(unit === 'sqft')  return sqftToSqm(v.sqft||0);
+  if(unit === 'karam'){
+    const lengthFt = (v.lengthKaram||0) * (v.karamFt||5.5);
+    const widthFt = (v.widthKaram||0) * (v.karamFt||5.5);
+    return sqftToSqm(lengthFt * widthFt);
+  }
   return v.sqm||0; // sqm
 }
 function computeAllConversions(areaSqm){
@@ -427,6 +434,10 @@ function buildConverterSummaryText(data){
   if(data.khasra) lines.push('Khasra No: ' + data.khasra);
   lines.push('Marla rate used: ' + getMarlaRateLabel());
   lines.push('Input: ' + data.inputSummary);
+  if(data.lengthFt !== undefined){
+    lines.push('Length: ' + fmt2(data.lengthFt) + ' ft (' + fmt2(data.lengthM) + ' m)');
+    lines.push('Width: ' + fmt2(data.widthFt) + ' ft (' + fmt2(data.widthM) + ' m)');
+  }
   lines.push('Kanal-Marla-Sqft: ' + kmsLabel(data.kanal, data.marla, data.remSqft));
   lines.push('Total Marla (decimal): ' + fmt2(data.totalMarlaDecimal));
   lines.push('Total Sarsahi (decimal): ' + fmt2(data.totalSarsahiDecimal));
@@ -632,6 +643,21 @@ function renderEmpty(){
         v.sqft = parseFloat(document.getElementById('cvSqftOnly').value);
         if(isNaN(v.sqft) || v.sqft < 0){ showToast('Enter a valid Sq Ft value'); return; }
         inputSummary = fmtFull(v.sqft) + ' Sq Ft';
+      } else if(convertUnit === 'karam'){
+        const lenBtn = document.querySelector('.karam-len-btn.active');
+        let karamFt = 5.5;
+        if(lenBtn){
+          karamFt = lenBtn.dataset.karamlen === 'custom'
+            ? (parseFloat(document.getElementById('cvKaramCustom').value) || 5.5)
+            : parseFloat(lenBtn.dataset.karamlen);
+        }
+        v.lengthKaram = parseFloat(document.getElementById('cvKaramLength').value);
+        v.widthKaram = parseFloat(document.getElementById('cvKaramWidth').value);
+        v.karamFt = karamFt;
+        if(isNaN(v.lengthKaram) || isNaN(v.widthKaram) || v.lengthKaram <= 0 || v.widthKaram <= 0){
+          showToast('Enter valid Length and Width in Karam'); return;
+        }
+        inputSummary = fmt2(v.lengthKaram) + ' \u00d7 ' + fmt2(v.widthKaram) + ' Karam (1 Karam = ' + karamFt + ' ft)';
       } else {
         v.sqm = parseFloat(document.getElementById('cvSqm').value);
         if(isNaN(v.sqm) || v.sqm < 0){ showToast('Enter a valid Sq Meters value'); return; }
@@ -639,7 +665,13 @@ function renderEmpty(){
       }
       const areaSqm = convertInputToSqm(convertUnit, v);
       const all = computeAllConversions(areaSqm);
-      const result = { khasra, inputUnit: convertUnit, inputSummary, areaSqm, ...all, marlaRateUsed: getMarlaRate() };
+      let extra = {};
+      if(convertUnit === 'karam'){
+        const lengthFt = v.lengthKaram * v.karamFt;
+        const widthFt = v.widthKaram * v.karamFt;
+        extra = { lengthFt, widthFt, lengthM: lengthFt / METERS_TO_FEET, widthM: widthFt / METERS_TO_FEET, karamFtUsed: v.karamFt, lengthKaram: v.lengthKaram, widthKaram: v.widthKaram };
+      }
+      const result = { khasra, inputUnit: convertUnit, inputSummary, areaSqm, ...all, ...extra, marlaRateUsed: getMarlaRate() };
       saveConverter(result);
       render();
     };
@@ -661,6 +693,27 @@ function renderConvertInputFields(){
     el.innerHTML = `<div class="field"><label>Acres (decimal)</label><input type="number" id="cvAcres" inputmode="decimal" step="any" placeholder="e.g. 1.25"></div>`;
   } else if(convertUnit === 'sqft'){
     el.innerHTML = `<div class="field"><label>Square Feet</label><input type="number" id="cvSqftOnly" inputmode="decimal" step="any" placeholder="e.g. 5400"></div>`;
+  } else if(convertUnit === 'karam'){
+    el.innerHTML = `
+      <div class="unit-toggle">
+        <button class="karam-len-btn active" data-karamlen="5.5">1 Karam = 5.5 ft</button>
+        <button class="karam-len-btn" data-karamlen="5">1 Karam = 5 ft</button>
+        <button class="karam-len-btn" data-karamlen="custom">Custom</button>
+      </div>
+      <div class="field" id="karamCustomField" style="display:none;margin-bottom:10px;">
+        <label>Custom Karam (ft)</label>
+        <input type="number" id="cvKaramCustom" inputmode="decimal" step="any" value="5.5">
+      </div>
+      <div class="field-grid-2">
+        <div class="field"><label>Length (Karam)</label><input type="number" id="cvKaramLength" inputmode="decimal" step="any" placeholder="e.g. 40"></div>
+        <div class="field"><label>Width (Karam)</label><input type="number" id="cvKaramWidth" inputmode="decimal" step="any" placeholder="e.g. 36"></div>
+      </div>`;
+    document.querySelectorAll('.karam-len-btn').forEach(btn => {
+      btn.onclick = function(){
+        document.querySelectorAll('.karam-len-btn').forEach(b => b.classList.toggle('active', b===this));
+        document.getElementById('karamCustomField').style.display = this.dataset.karamlen === 'custom' ? '' : 'none';
+      };
+    });
   } else {
     el.innerHTML = `<div class="field"><label>Square Meters</label><input type="number" id="cvSqm" inputmode="decimal" step="any" placeholder="e.g. 500"></div>`;
   }
@@ -707,8 +760,31 @@ function bindTolerance(getActualSqm, existing, onResult){
   };
 }
 
+/* ================= STALE-RATE FIX ================= */
+/* areaSqm (and, for the converter, raw Karam/Acre/etc. inputs) is the one
+   rate-independent source of truth. Kanal/Marla/Sqft/Sarsahi and tolerance
+   pass/fail are all *derived* from it using the currently selected Marla
+   rate, so they must be recomputed on every render — never trusted from
+   storage — or they go stale the moment Settings is changed. */
+function refreshAreaFields(data){
+  const kms = sqmToKMS(data.areaSqm);
+  data.kanal = kms.kanal; data.marla = kms.marla; data.remSqft = kms.remSqft;
+  data.sarsahi = kms.sarsahi; data.totalSqft = kms.totalSqft;
+  if(data.tolerance){
+    const expectedSqm = kmsToSqm(data.tolerance.expKanal, data.tolerance.expMarla, data.tolerance.expSqft);
+    const result = checkTolerance(data.areaSqm, expectedSqm);
+    data.tolerance.pass = result.pass; data.tolerance.pct = result.pct; data.tolerance.diff = result.diff;
+  }
+}
+function refreshConverterFields(data){
+  const all = computeAllConversions(data.areaSqm);
+  Object.assign(data, all);
+}
+
 /* ================= CSV RESULT ================= */
 function renderResult(data){
+  refreshAreaFields(data);
+  saveSurvey(data);
   const flags = [];
   if(data.multiZone) flags.push('Points span more than one UTM zone — area may be inaccurate. Verify manually.');
   if(data.suspicious && data.suspicious.length) flags.push(data.suspicious.length + ' pair(s) of points are less than 30cm apart — check for duplicate points.');
@@ -776,6 +852,8 @@ function renderResult(data){
 
 /* ================= MANUAL RESULT ================= */
 function renderManualResult(data){
+  refreshAreaFields(data);
+  saveManual(data);
   const tabs = [ {key:'area',label:'Area'}, {key:'tolerance',label:'Tolerance'} ];
   if(!['area','tolerance'].includes(currentManualTab)) currentManualTab = 'area';
 
@@ -819,12 +897,22 @@ function renderManualResult(data){
 
 /* ================= CONVERTER RESULT ================= */
 function renderConvertResult(data){
+  refreshConverterFields(data);
+  saveConverter(data);
   app.innerHTML = `
     <div class="card">
       ${data.khasra ? `<div class="row"><span class="label">Khasra No.</span><span class="value">${data.khasra}</span></div>` : ''}
       <div class="row"><span class="label">Input</span><span class="value" style="font-size:13px;">${data.inputSummary}</span></div>
       <div class="row"><span class="label">Marla rate used</span><span class="value" style="font-size:13px;">${getMarlaRateLabel()}</span></div>
     </div>
+
+    ${data.lengthFt !== undefined ? `
+    <div class="card">
+      <h2><span class="icon">&#128207;</span> Khasra Dimensions</h2>
+      <div class="row"><span class="label">Karam used</span><span class="value">${data.karamFtUsed} ft</span></div>
+      <div class="row"><span class="label">Length</span><span class="value">${fmt2(data.lengthKaram)} Karam &nbsp;=&nbsp; ${fmt2(data.lengthFt)} ft / ${fmt2(data.lengthM)} m</span></div>
+      <div class="row"><span class="label">Width</span><span class="value">${fmt2(data.widthKaram)} Karam &nbsp;=&nbsp; ${fmt2(data.widthFt)} ft / ${fmt2(data.widthM)} m</span></div>
+    </div>` : ''}
 
     <div class="note">Acre figure assumes the Marla rate above. Only the Revenue (272.25) rate gives the standard 1 Acre = 8 Kanal.</div>
 
