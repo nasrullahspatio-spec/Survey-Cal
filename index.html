@@ -86,6 +86,7 @@
 
   .field-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;}
   .field-grid-2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  .field-grid-4{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px;}
   .field{display:flex;flex-direction:column;gap:5px;}
   .field label{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;}
   .field input,.field select{font-size:17px;padding:12px 8px;border:1.5px solid var(--line);border-radius:var(--radius-sm);text-align:center;width:100%;font-weight:700;background:var(--card);color:var(--text);}
@@ -137,6 +138,10 @@
   .unit-toggle button{flex:1;padding:9px;font-size:12.5px;font-weight:700;background:transparent;border:none;border-radius:7px;color:var(--muted);cursor:pointer;}
   .unit-toggle button.active{background:var(--card);color:var(--accent);box-shadow:var(--shadow);}
 
+  .shape-toggle{display:flex;background:var(--panel);border-radius:var(--radius-sm);padding:3px;margin-bottom:12px;}
+  .shape-toggle button{flex:1;padding:9px;font-size:12px;font-weight:700;background:transparent;border:none;border-radius:7px;color:var(--muted);cursor:pointer;}
+  .shape-toggle button.active{background:var(--card);color:var(--accent);box-shadow:var(--shadow);}
+
   ::-webkit-scrollbar{width:4px;}
   ::-webkit-scrollbar-track{background:transparent;}
   ::-webkit-scrollbar-thumb{background:var(--line);border-radius:4px;}
@@ -169,14 +174,14 @@ const SQFT_PER_SQM = 10.76391041671;
 const MARLA_PER_KANAL = 20;
 const SARSAHI_PER_MARLA = 9;
 const ACRE_SQFT = 43560;
-const TOLERANCE_PCT = 10; // company SOP
+const TOLERANCE_PCT = 10;
 
-/* Static build label — set manually, never auto-generated from today's date. */
 const BUILD_DATE = '9 July';
 
 const STORAGE_KEY     = 'survey_data_v5';
 const MANUAL_KEY      = 'survey_manual_v5';
 const CONVERTER_KEY   = 'survey_converter_v5';
+const KHASRA_KEY      = 'survey_khasra_v5';
 const DATE_KEY        = 'survey_date_v5';
 const MARLA_MODE_KEY  = 'survey_marla_mode_v5';
 const MARLA_CUSTOM_KEY= 'survey_marla_custom_v5';
@@ -196,6 +201,7 @@ function checkDayReset(){
     localStorage.removeItem(STORAGE_KEY);
     localStorage.removeItem(MANUAL_KEY);
     localStorage.removeItem(CONVERTER_KEY);
+    localStorage.removeItem(KHASRA_KEY);
     localStorage.setItem(DATE_KEY, today);
   }
 }
@@ -208,6 +214,9 @@ function clearManual(){ localStorage.removeItem(MANUAL_KEY); }
 function saveConverter(data){ localStorage.setItem(CONVERTER_KEY, JSON.stringify(data)); localStorage.setItem(DATE_KEY, todayStr()); }
 function loadConverter(){ const raw = localStorage.getItem(CONVERTER_KEY); return raw ? JSON.parse(raw) : null; }
 function clearConverter(){ localStorage.removeItem(CONVERTER_KEY); }
+function saveKhasra(data){ localStorage.setItem(KHASRA_KEY, JSON.stringify(data)); localStorage.setItem(DATE_KEY, todayStr()); }
+function loadKhasra(){ const raw = localStorage.getItem(KHASRA_KEY); return raw ? JSON.parse(raw) : null; }
+function clearKhasra(){ localStorage.removeItem(KHASRA_KEY); }
 
 function getMarlaMode(){ return localStorage.getItem(MARLA_MODE_KEY) || 'revenue'; }
 function setMarlaMode(mode){ localStorage.setItem(MARLA_MODE_KEY, mode); }
@@ -364,28 +373,21 @@ function checkTolerance(actualSqm, expectedSqm){
   return { diff, pct, pass };
 }
 
-/* ================= UNIT CONVERTER ================= */
+/* ================= UNIT CONVERTER (no karam) ================= */
 const CONVERT_UNITS = {
   kms:   { label: 'Kanal-Marla-Sqft' },
   marla: { label: 'Marla (decimal)' },
   acres: { label: 'Acres (decimal)' },
   sqft:  { label: 'Square Feet' },
-  sqm:   { label: 'Square Meters' },
-  karam: { label: 'Khasra (Karam L\u00d7W)' }
+  sqm:   { label: 'Square Meters' }
 };
-/* Converts any supported input unit into sqm, the app's common internal unit. */
 function convertInputToSqm(unit, v){
   const rate = getMarlaRate();
   if(unit === 'kms')   return kmsToSqm(v.kanal||0, v.marla||0, v.sqft||0);
   if(unit === 'marla') return sqftToSqm((v.marla||0) * rate);
   if(unit === 'acres') return sqftToSqm((v.acres||0) * ACRE_SQFT);
   if(unit === 'sqft')  return sqftToSqm(v.sqft||0);
-  if(unit === 'karam'){
-    const lengthFt = (v.lengthKaram||0) * (v.karamFt||5.5);
-    const widthFt = (v.widthKaram||0) * (v.karamFt||5.5);
-    return sqftToSqm(lengthFt * widthFt);
-  }
-  return v.sqm||0; // sqm
+  return v.sqm||0;
 }
 function computeAllConversions(areaSqm){
   const rate = getMarlaRate();
@@ -446,6 +448,25 @@ function buildConverterSummaryText(data){
   lines.push('Sq Meters: ' + fmtFull(data.areaSqm));
   return lines.join('\n');
 }
+function buildKhasraSummaryText(data){
+  const lines = [];
+  lines.push('Khasra Area — ' + new Date().toDateString());
+  if(data.khasra) lines.push('Khasra No: ' + data.khasra);
+  lines.push('Shape: ' + data.shapeLabel);
+  lines.push('Karam used: ' + data.karamFtUsed + ' ft');
+  lines.push('Marla rate used: ' + getMarlaRateLabel());
+  lines.push('Input: ' + data.inputSummary);
+  lines.push('Kanal-Marla-Sqft: ' + kmsLabel(data.kanal, data.marla, data.remSqft));
+  lines.push('Total Marla (decimal): ' + fmt2(data.totalMarlaDecimal));
+  lines.push('Total Sarsahi (decimal): ' + fmt2(data.totalSarsahiDecimal));
+  lines.push('Acres: ' + fmt4(data.acres));
+  lines.push('Sq Ft: ' + fmtFull(data.totalSqft));
+  lines.push('Sq Meters: ' + fmtFull(data.areaSqm));
+  if(data.tolerance){
+    lines.push('Tolerance vs expected: ' + (data.tolerance.pass?'PASS':'FAIL') + '  (' + (data.tolerance.pct>=0?'+':'') + fmt2(data.tolerance.pct) + '%)');
+  }
+  return lines.join('\n');
+}
 
 /* ================= MODAL (SETTINGS) ================= */
 function openSettingsModal(onChange){
@@ -492,6 +513,8 @@ let currentResultTab = 'area';
 let currentManualTab = 'area';
 let manualUnit = 'sqm';
 let convertUnit = 'kms';
+let currentKhasraShape = 'square';
+let currentKhasraTab = 'area';
 
 document.getElementById('headerGearBtn').onclick = () => openSettingsModal(render);
 document.getElementById('buildNote').textContent = 'Build: ' + BUILD_DATE;
@@ -502,9 +525,11 @@ function render(){
   const data = loadSurvey();
   const manualData = loadManual();
   const convData = loadConverter();
+  const khasraData = loadKhasra();
   if(data) renderResult(data);
   else if(manualData) renderManualResult(manualData);
   else if(convData) renderConvertResult(convData);
+  else if(khasraData) renderKhasraResult(khasraData);
   else renderEmpty();
 }
 
@@ -515,6 +540,7 @@ function renderEmpty(){
       <button class="mode-tab ${currentMode==='csv'?'active':''}" data-mode="csv">Import CSV</button>
       <button class="mode-tab ${currentMode==='manual'?'active':''}" data-mode="manual">Manual Entry</button>
       <button class="mode-tab ${currentMode==='convert'?'active':''}" data-mode="convert">Unit Converter</button>
+      <button class="mode-tab ${currentMode==='khasra'?'active':''}" data-mode="khasra">Khasra Area</button>
     </div>
 
     <div id="csvSection" class="${currentMode==='csv'?'':'hidden'}">
@@ -561,6 +587,32 @@ function renderEmpty(){
         </div>
         <div id="convertInputFields"></div>
         <button class="btn btn-primary" id="doConvertBtn" style="margin-top:14px;">Convert</button>
+      </div>
+    </div>
+
+    <div id="khasraSection" class="${currentMode==='khasra'?'':'hidden'}">
+      <div class="card">
+        <h2><span class="icon">&#128207;</span> Khasra Area (from sides)</h2>
+        <div class="shape-toggle" id="shapeToggle">
+          <button class="shape-btn ${currentKhasraShape==='square'?'active':''}" data-shape="square">Square</button>
+          <button class="shape-btn ${currentKhasraShape==='rectangle'?'active':''}" data-shape="rectangle">Rectangle</button>
+          <button class="shape-btn ${currentKhasraShape==='irregular'?'active':''}" data-shape="irregular">Irregular</button>
+        </div>
+        <div class="unit-toggle" id="karamToggle">
+          <button class="karam-len-btn active" data-karamlen="5.5">1 Karam = 5.5 ft</button>
+          <button class="karam-len-btn" data-karamlen="5">1 Karam = 5 ft</button>
+          <button class="karam-len-btn" data-karamlen="custom">Custom</button>
+        </div>
+        <div class="field" id="karamCustomField" style="display:none;margin-bottom:10px;">
+          <label>Custom Karam (ft)</label>
+          <input type="number" id="cvKaramCustom" inputmode="decimal" step="any" value="5.5">
+        </div>
+        <div class="field" style="margin-bottom:12px;">
+          <label>Khasra No. (optional)</label>
+          <input type="text" id="khasraNoInput" class="text-left" placeholder="e.g. 1122">
+        </div>
+        <div id="khasraInputFields"></div>
+        <button class="btn btn-primary" id="doKhasraBtn" style="margin-top:14px;">Calculate Area</button>
       </div>
     </div>
   `;
@@ -643,21 +695,6 @@ function renderEmpty(){
         v.sqft = parseFloat(document.getElementById('cvSqftOnly').value);
         if(isNaN(v.sqft) || v.sqft < 0){ showToast('Enter a valid Sq Ft value'); return; }
         inputSummary = fmtFull(v.sqft) + ' Sq Ft';
-      } else if(convertUnit === 'karam'){
-        const lenBtn = document.querySelector('.karam-len-btn.active');
-        let karamFt = 5.5;
-        if(lenBtn){
-          karamFt = lenBtn.dataset.karamlen === 'custom'
-            ? (parseFloat(document.getElementById('cvKaramCustom').value) || 5.5)
-            : parseFloat(lenBtn.dataset.karamlen);
-        }
-        v.lengthKaram = parseFloat(document.getElementById('cvKaramLength').value);
-        v.widthKaram = parseFloat(document.getElementById('cvKaramWidth').value);
-        v.karamFt = karamFt;
-        if(isNaN(v.lengthKaram) || isNaN(v.widthKaram) || v.lengthKaram <= 0 || v.widthKaram <= 0){
-          showToast('Enter valid Length and Width in Karam'); return;
-        }
-        inputSummary = fmt2(v.lengthKaram) + ' \u00d7 ' + fmt2(v.widthKaram) + ' Karam (1 Karam = ' + karamFt + ' ft)';
       } else {
         v.sqm = parseFloat(document.getElementById('cvSqm').value);
         if(isNaN(v.sqm) || v.sqm < 0){ showToast('Enter a valid Sq Meters value'); return; }
@@ -666,13 +703,85 @@ function renderEmpty(){
       const areaSqm = convertInputToSqm(convertUnit, v);
       const all = computeAllConversions(areaSqm);
       let extra = {};
-      if(convertUnit === 'karam'){
-        const lengthFt = v.lengthKaram * v.karamFt;
-        const widthFt = v.widthKaram * v.karamFt;
-        extra = { lengthFt, widthFt, lengthM: lengthFt / METERS_TO_FEET, widthM: widthFt / METERS_TO_FEET, karamFtUsed: v.karamFt, lengthKaram: v.lengthKaram, widthKaram: v.widthKaram };
-      }
       const result = { khasra, inputUnit: convertUnit, inputSummary, areaSqm, ...all, ...extra, marlaRateUsed: getMarlaRate() };
       saveConverter(result);
+      render();
+    };
+  }
+
+  /* ---- Khasra Area event binding ---- */
+  renderKhasraInputFields();
+  document.querySelectorAll('.shape-btn').forEach(btn => {
+    btn.onclick = function(){
+      currentKhasraShape = this.dataset.shape;
+      document.querySelectorAll('.shape-btn').forEach(b => b.classList.toggle('active', b===this));
+      renderKhasraInputFields();
+    };
+  });
+  document.querySelectorAll('.karam-len-btn').forEach(btn => {
+    btn.onclick = function(){
+      document.querySelectorAll('.karam-len-btn').forEach(b => b.classList.toggle('active', b===this));
+      document.getElementById('karamCustomField').style.display = this.dataset.karamlen === 'custom' ? '' : 'none';
+    };
+  });
+  const doKhasraBtn = document.getElementById('doKhasraBtn');
+  if(doKhasraBtn){
+    doKhasraBtn.onclick = function(){
+      const khasra = document.getElementById('khasraNoInput').value.trim();
+      const lenBtn = document.querySelector('#karamToggle .karam-len-btn.active');
+      let karamFt = 5.5;
+      if(lenBtn){
+        karamFt = lenBtn.dataset.karamlen === 'custom'
+          ? (parseFloat(document.getElementById('cvKaramCustom').value) || 5.5)
+          : parseFloat(lenBtn.dataset.karamlen);
+      }
+      let inputSummary = '';
+      let areaSqft = 0;
+      const shapeLabels = { square: 'Square', rectangle: 'Rectangle', irregular: 'Irregular' };
+
+      if(currentKhasraShape === 'square'){
+        const side = parseFloat(document.getElementById('khSide').value);
+        if(isNaN(side) || side <= 0){ showToast('Enter a valid side length in Karam'); return; }
+        const sideFt = side * karamFt;
+        areaSqft = sideFt * sideFt;
+        inputSummary = 'Square: Side = ' + fmt2(side) + ' Karam (' + fmt2(sideFt) + ' ft)';
+      } else if(currentKhasraShape === 'rectangle'){
+        const length = parseFloat(document.getElementById('khLength').value);
+        const width = parseFloat(document.getElementById('khWidth').value);
+        if(isNaN(length) || isNaN(width) || length <= 0 || width <= 0){ showToast('Enter valid Length and Width in Karam'); return; }
+        const lengthFt = length * karamFt;
+        const widthFt = width * karamFt;
+        areaSqft = lengthFt * widthFt;
+        inputSummary = 'Rectangle: ' + fmt2(length) + ' \u00d7 ' + fmt2(width) + ' Karam (' + fmt2(lengthFt) + ' \u00d7 ' + fmt2(widthFt) + ' ft)';
+      } else {
+        const s1 = parseFloat(document.getElementById('khS1').value);
+        const s2 = parseFloat(document.getElementById('khS2').value);
+        const s3 = parseFloat(document.getElementById('khS3').value);
+        const s4 = parseFloat(document.getElementById('khS4').value);
+        if(isNaN(s1) || isNaN(s2) || isNaN(s3) || isNaN(s4) || s1 <= 0 || s2 <= 0 || s3 <= 0 || s4 <= 0){
+          showToast('Enter all 4 sides in Karam'); return;
+        }
+        const avgPair1 = (s1 + s3) / 2;
+        const avgPair2 = (s2 + s4) / 2;
+        areaSqft = avgPair1 * karamFt * avgPair2 * karamFt;
+        inputSummary = 'Irregular: Sides ' + fmt2(s1) + ', ' + fmt2(s2) + ', ' + fmt2(s3) + ', ' + fmt2(s4) + ' Karam';
+      }
+
+      const areaSqm = sqftToSqm(areaSqft);
+      const all = computeAllConversions(areaSqm);
+      const result = {
+        khasra,
+        shape: currentKhasraShape,
+        shapeLabel: shapeLabels[currentKhasraShape],
+        karamFtUsed: karamFt,
+        inputSummary,
+        areaSqm,
+        ...all,
+        marlaRateUsed: getMarlaRate(),
+        tolerance: null
+      };
+      saveKhasra(result);
+      currentKhasraTab = 'area';
       render();
     };
   }
@@ -693,29 +802,28 @@ function renderConvertInputFields(){
     el.innerHTML = `<div class="field"><label>Acres (decimal)</label><input type="number" id="cvAcres" inputmode="decimal" step="any" placeholder="e.g. 1.25"></div>`;
   } else if(convertUnit === 'sqft'){
     el.innerHTML = `<div class="field"><label>Square Feet</label><input type="number" id="cvSqftOnly" inputmode="decimal" step="any" placeholder="e.g. 5400"></div>`;
-  } else if(convertUnit === 'karam'){
-    el.innerHTML = `
-      <div class="unit-toggle">
-        <button class="karam-len-btn active" data-karamlen="5.5">1 Karam = 5.5 ft</button>
-        <button class="karam-len-btn" data-karamlen="5">1 Karam = 5 ft</button>
-        <button class="karam-len-btn" data-karamlen="custom">Custom</button>
-      </div>
-      <div class="field" id="karamCustomField" style="display:none;margin-bottom:10px;">
-        <label>Custom Karam (ft)</label>
-        <input type="number" id="cvKaramCustom" inputmode="decimal" step="any" value="5.5">
-      </div>
-      <div class="field-grid-2">
-        <div class="field"><label>Length (Karam)</label><input type="number" id="cvKaramLength" inputmode="decimal" step="any" placeholder="e.g. 40"></div>
-        <div class="field"><label>Width (Karam)</label><input type="number" id="cvKaramWidth" inputmode="decimal" step="any" placeholder="e.g. 36"></div>
-      </div>`;
-    document.querySelectorAll('.karam-len-btn').forEach(btn => {
-      btn.onclick = function(){
-        document.querySelectorAll('.karam-len-btn').forEach(b => b.classList.toggle('active', b===this));
-        document.getElementById('karamCustomField').style.display = this.dataset.karamlen === 'custom' ? '' : 'none';
-      };
-    });
   } else {
     el.innerHTML = `<div class="field"><label>Square Meters</label><input type="number" id="cvSqm" inputmode="decimal" step="any" placeholder="e.g. 500"></div>`;
+  }
+}
+
+function renderKhasraInputFields(){
+  const el = document.getElementById('khasraInputFields');
+  if(!el) return;
+  if(currentKhasraShape === 'square'){
+    el.innerHTML = `<div class="field"><label>Side (Karam)</label><input type="number" id="khSide" inputmode="decimal" step="any" placeholder="e.g. 40"></div>`;
+  } else if(currentKhasraShape === 'rectangle'){
+    el.innerHTML = `<div class="field-grid-2">
+      <div class="field"><label>Length (Karam)</label><input type="number" id="khLength" inputmode="decimal" step="any" placeholder="e.g. 40"></div>
+      <div class="field"><label>Width (Karam)</label><input type="number" id="khWidth" inputmode="decimal" step="any" placeholder="e.g. 36"></div>
+    </div>`;
+  } else {
+    el.innerHTML = `<div class="field-grid-2">
+      <div class="field"><label>Side 1 (Karam)</label><input type="number" id="khS1" inputmode="decimal" step="any" placeholder="e.g. 40"></div>
+      <div class="field"><label>Side 2 (Karam)</label><input type="number" id="khS2" inputmode="decimal" step="any" placeholder="e.g. 38.5"></div>
+      <div class="field"><label>Side 3 (Karam)</label><input type="number" id="khS3" inputmode="decimal" step="any" placeholder="e.g. 40"></div>
+      <div class="field"><label>Side 4 (Karam)</label><input type="number" id="khS4" inputmode="decimal" step="any" placeholder="e.g. 38.75"></div>
+    </div>`;
   }
 }
 
@@ -761,11 +869,6 @@ function bindTolerance(getActualSqm, existing, onResult){
 }
 
 /* ================= STALE-RATE FIX ================= */
-/* areaSqm (and, for the converter, raw Karam/Acre/etc. inputs) is the one
-   rate-independent source of truth. Kanal/Marla/Sqft/Sarsahi and tolerance
-   pass/fail are all *derived* from it using the currently selected Marla
-   rate, so they must be recomputed on every render — never trusted from
-   storage — or they go stale the moment Settings is changed. */
 function refreshAreaFields(data){
   const kms = sqmToKMS(data.areaSqm);
   data.kanal = kms.kanal; data.marla = kms.marla; data.remSqft = kms.remSqft;
@@ -934,6 +1037,59 @@ function renderConvertResult(data){
   document.getElementById('copyBigStat').onclick = () => copyText(kmsLabel(data.kanal, data.marla, data.remSqft));
 
   renderBottomBar(() => copyText(buildConverterSummaryText(data)), () => { clearConverter(); render(); });
+}
+
+/* ================= KHASRA RESULT ================= */
+function renderKhasraResult(data){
+  refreshConverterFields(data);
+  saveKhasra(data);
+  const tabs = [ {key:'area',label:'Area'}, {key:'tolerance',label:'Tolerance'} ];
+  if(!['area','tolerance'].includes(currentKhasraTab)) currentKhasraTab = 'area';
+
+  app.innerHTML = `
+    ${tabNavHTML(tabs, currentKhasraTab)}
+
+    <div class="tab-panel ${currentKhasraTab==='area'?'active':''}" data-panel="area">
+      <div class="card">
+        ${data.khasra ? `<div class="row"><span class="label">Khasra No.</span><span class="value">${data.khasra}</span></div>` : ''}
+        <div class="row"><span class="label">Shape</span><span class="value">${data.shapeLabel}</span></div>
+        <div class="row"><span class="label">Karam used</span><span class="value">${data.karamFtUsed} ft</span></div>
+        <div class="row"><span class="label">Input</span><span class="value" style="font-size:13px;">${data.inputSummary}</span></div>
+        <div class="row"><span class="label">Marla rate used</span><span class="value" style="font-size:13px;">${getMarlaRateLabel()}</span></div>
+      </div>
+
+      <div class="note">Acre figure assumes the Marla rate above. Only the Revenue (272.25) rate gives the standard 1 Acre = 8 Kanal.</div>
+
+      <div class="card">
+        <div class="bigstat" id="copyBigStat" title="Tap to copy">
+          <div class="num">${kmsLabel(data.kanal, data.marla, data.remSqft)}</div>
+          <div class="cap">Kanal &ndash; Marla &ndash; Sq Ft</div>
+          <div class="subcap">matches official app format</div>
+          <div class="divider"></div>
+          <div class="tapcap">Tap to copy</div>
+        </div>
+        <div class="row"><span class="label">Total Marla (decimal)</span><span class="value">${fmt2(data.totalMarlaDecimal)}</span></div>
+        <div class="row"><span class="label">Total Sarsahi (decimal)</span><span class="value">${fmt2(data.totalSarsahiDecimal)}</span></div>
+        <div class="row"><span class="label">Acres</span><span class="value">${fmt4(data.acres)}</span></div>
+        <div class="row"><span class="label">Sq Ft</span><span class="value">${fmtFull(data.totalSqft)}</span></div>
+        <div class="row"><span class="label">Sq Meters</span><span class="value">${fmtFull(data.areaSqm)}</span></div>
+      </div>
+    </div>
+
+    <div class="tab-panel ${currentKhasraTab==='tolerance'?'active':''}" data-panel="tolerance">
+      ${toleranceHTML(data.tolerance)}
+    </div>
+  `;
+
+  bindTabNav((key) => { currentKhasraTab = key; render(); });
+
+  document.getElementById('copyBigStat').onclick = () => copyText(kmsLabel(data.kanal, data.marla, data.remSqft));
+
+  if(currentKhasraTab === 'tolerance'){
+    bindTolerance(() => data.areaSqm, data.tolerance, (tol) => { data.tolerance = tol; saveKhasra(data); });
+  }
+
+  renderBottomBar(() => copyText(buildKhasraSummaryText(data)), () => { clearKhasra(); currentKhasraTab='area'; render(); });
 }
 
 /* ================= BOTTOM BAR ================= */
